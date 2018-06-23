@@ -4,8 +4,10 @@ const Discord = require('discord.js'),
 const fs = require('fs');
 const exec = require('child_process').exec;
 const meme = require('memejs');
-const help = require('./help.js').run;
+const help = require('./commands/help.js').run;
+const pay = require('./commands/pay.js').run;
 const superagent = require('superagent');
+const math = require('math-expression-evaluator');
 const Jimp = require('jimp');
 const { version } = require("discord.js");
 const moment = require("moment");
@@ -60,22 +62,22 @@ const talkedRecently = new Set();
 const tools = new DiscordTools(process.env.TOKEN);
 const youtube = new YouTube(process.env.YTAK);
 const queue = new Map();
-const bot = new Discord.Client();
-bot.on('ready', () => {
-    bot.user.setUsername('Nissan')
-    bot.user.setStatus('idle')
-    bot.user.setGame('Nissan || ;help', 'http://twitch.tv/sh1eldee')
-    console.log(`Logged in as ${bot.user.tag}!`);
+const client = new Discord.Client();
+client.on('ready', () => {
+    client.user.setUsername('Nissan')
+    client.user.setStatus('idle')
+    client.user.setActivity(`Type ;help || Coding Me...`, { type: "streaming", url: "https://www.twitch.tv/sh1eldee" });
+    console.log(`Logged in as ${client.user.tag}!`);
 });
 
 
 var prefix = ";";
-bot.on("message", async message => {
+client.on("message", async message => {
     var args = message.content.substring(prefix.length).split(" ");
     if (!message.content.startsWith(prefix)) return;
   var searchString = args.slice(1).join(' ');
 	var url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : '';
-  	var serverQueue = queue.get(message.guild.id);
+  var serverQueue = queue.get(message.guild.id);
   
     switch (args[0].toLowerCase()) {
       case "exec":
@@ -90,8 +92,8 @@ bot.on("message", async message => {
        resetBot(message.channel);
             function resetBot(channel) {
                 message.react('✅')
-                    .then(message => bot.destroy())
-                    .then(() => bot.login(process.env.TOKEN));
+                    .then(message => client.destroy())
+                    .then(() => client.login(process.env.TOKEN));
               var embed = new Discord.RichEmbed()
                 .setDescription("Nissan is **sucessfully restarted!**")
                 .setFooter('Requested By ' + message.author.tag, message.author.avatarURL)
@@ -100,20 +102,21 @@ bot.on("message", async message => {
             }
             break;
       case "watch":
-var nameResult = args.join(' ');
+var nameResult = args.join(' ').slice(5);
 if (!nameResult) nameResult = null;
-bot.user.setActivity(nameResult, {type: "WATCHING"});
+client.user.setActivity(nameResult, {type: "WATCHING"});
 if (message.author.id !== "353271087758573578" && message.author.id !== "378998523028307973") return message.channel.send(":no_entry: `Sorry, but you cant change watch status!`");
 var embed = new Discord.RichEmbed()
 .setAuthor(`${message.author.tag}`, `${message.author.avatarURL}`)
 .setDescription(`**${nameResult} is now my new Playing Game.** (Set as WATCHING)`)
+.setFooter('Requested By' + message.author.tag, message.author.avatarURL)
 .setColor('#42c5f4')
 message.channel.send(embed)
 break;
         case "play":
             var gamestr = args.join(" ").replace("play ", "");
             if (message.author.id === "378998523028307973" || message.author.id === "353271087758573578") {
-                bot.user.setPresence({ game: { name: gamestr, type: 0 } });
+                client.user.setPresence({ game: { name: gamestr, type: 0 } });
                 message.channel.send("**The game was set to **" + gamestr);
             }
             else {
@@ -126,17 +129,51 @@ break;
             if (sgame.length === 0) {
                 var embed = new Discord.RichEmbed()
                     .setColor('#42c5f4')
-                    .setDescription('**❎ Name streaming status!**');
+                    .setDescription('**❎ Name streaming status!**')
+                    .setFooter('Requested By' + message.author.tag, message.author.avatarURL)
                 message.channel.send({ embed });
             }
             else {
-                bot.user.setPresence({ game: { name: sgame, url: 'https://twitch.tv/sh1eldee', type: 1 } });
+                client.user.setPresence({ game: { name: sgame, url: 'https://twitch.tv/sh1eldee', type: 1 } });
                 var embed = new Discord.RichEmbed()
                     .setColor('#42c5f4')
-                    .setDescription('✅ `You sucessfully changed streaming status.`');
+                    .setDescription('✅ `You sucessfully changed streaming status.`')
+                   .setFooter('Requested By' + message.author.tag, message.author.avatarURL)
                 message.channel.send({ embed });
             };
             break;
+      case "nickname":
+  if (!message.member.hasPermission("MANAGE_MESSAGES")) return message.channel.send(":no_entry: `Sorry, but you do not have valid permissions to change Nissan's nickname!!`");
+  if(!args[1]) return message.channel.send(":warning: `You need to type some text to change Nissan's Usarname first!`")
+
+  let nickname = args.join(' ').slice(8)
+  message.guild.members.get('455447742542774292')
+  .setNickname(nickname);
+  await message.channel.send({
+  embed: new Discord.RichEmbed()
+
+  .setTitle(`Changed Server Nickname to ${nickname}`)
+  .setFooter('Requested By' + message.author.tag, message.author.avatarURL)
+  .setColor("#42c5f4")
+  })
+        break;
+      case "prefix":
+  if (!message.member.hasPermission('ADMINISTRATOR') && message.author.id !== '353271087758573578') return message.channel.send(':no_entry: `Sorry, you don\'t have permission to change server prefix`')
+        
+let fetched = await db.fetch(`prefix_${message.guild.id}`);
+if (fetched === null) db.set(`prefix_${message.guild.id}`, ';');
+
+if (!args.join(' ').slice(7)) return message.channel.send(':warning: `Please provide a prefix to change server prefix`')
+
+db.set(`prefix_${message.guild.id}`, args.join(' ').slice(7))
+	.then(i => {
+		var embed = new Discord.RichEmbed()
+    .setColor("#42c5f4")
+    .setDescription(`Server Prefix has been changed to ${i}`)
+    .setFooter('Requested By' + message.author.tag, message.author.avatarURL)
+    message.channel.send(embed)
+	})
+        break;
         case "serverinfo":
             var online = message.guild.members.filter(member => member.user.presence.status !== 'offline');
             var day = message.guild.createdAt.getDate();
@@ -157,27 +194,30 @@ break;
                 .addField('Humans', message.guild.memberCount - message.guild.members.filter(m => m.user.bot).size, true)
                 .addField('Bots', message.guild.members.filter(m => m.user.bot).size, true)
                 .addField('Online', online.size, true)
-                .addField('Roles', message.guild.roles.size, true);
+                .addField('Roles', message.guild.roles.size, true)
+                .setFooter('Requested By' + message.author.tag, message.author.avatarURL)
             message.channel.send({ embed });
             break;
       case "botinfo":
   var embed = new Discord.RichEmbed()
   .setColor('#42c5f4')
   .setTitle(`About Nissan Bot`)
-  .setThumbnail(`${bot.user.displayAvatarURL}`)
-  .addField("Info", `**Creation Date**: ${moment.utc(bot.user.createdAt).format('dddd, MMMM Do YYYY, HH:mm:ss')}\n**ID**: ${message.client.user.id}\n**Owner**: RealSparky\n**Version**: 2.0.1+ (Final Version)\n**Support Server**: https://discord.gg/Sjewjq`)
+  .setThumbnail(`${client.user.displayAvatarURL}`)
+  .addField("Info", `**Creation Date**: ${moment.utc(client.user.createdAt).format('dddd, MMMM Do YYYY, HH:mm:ss')}\n**ID**: ${message.client.user.id}\n**Owner**: RealSparky\n**Version**: 2.0.1+ (Final Version)\n**Support Server**: https://discord.gg/Sjewjq`)
+  .setFooter('Requested By' + message.author.tag, message.author.avatarURL)
   message.channel.send(embed);
 break;
                 case "avatar":
-            var user = message.mentions.users.first() || message.author;
+            var user = message.mentions.users.first() || matches.first() || message.author;
             var embed = new Discord.RichEmbed()
                 .setDescription('[Avatar Link](' + user.avatarURL + ')')
                 .setImage(user.displayAvatarURL)
-                .setColor('#42c5f4');
+                .setColor('#42c5f4')
+                .setFooter('Requested By' + message.author.tag, message.author.avatarURL)
             message.channel.send({ embed })
             break;
                 case "info":
-            var user = message.mentions.users.first() || message.author;
+            var user = message.mentions.users.first() || matches.first() || message.author;
             var embed = new Discord.RichEmbed()
                 .setThumbnail(user.avatarURL)
                 .setColor('#42c5f4')
@@ -187,14 +227,15 @@ break;
                 .addField('•Status', user.presence.status, true)
                 .addField("•Game:", `${user.presence.game ? user.presence.game.name : 'None'}`, true)
                 .addField('•Bot?', user.bot, true)
-                .addField('•Created At', user.createdAt, true);
+                .addField('•Created At', user.createdAt, true)
+                .setFooter('Requested By' + message.author.tag, message.author.avatarURL)
             message.channel.send({ embed });
             break;
                 case "clean":
-            if (!message.guild.member(bot.user).hasPermission('MANAGE_MESSAGES')) return message.channel.send('**I do not have the correct permissions.**').catch(console.error);
-            if (!message.member.hasPermission("MANAGE_MESSAGES")) return message.channel.send("**Sorry, but you do not have valid permissions! If you beleive this is a error, contact an owner.**");
-            if (isNaN(args[1])) return message.channel.send('**Please supply a valid amount of messages to purge**');
-            if (args[1] > 100) return message.channel.send('**Please supply a number less than 100**');
+            if (!message.guild.member(client.user).hasPermission('MANAGE_MESSAGES')) return message.channel.send(':no_entry `I do not have the correct permissions.`').catch(console.error);
+            if (!message.member.hasPermission("MANAGE_MESSAGES")) return message.channel.send(":no_entry: `Sorry, but you do not have valid permissions! If you beleive this is a error, contact an owner.`");
+            if (isNaN(args[1])) return message.channel.send(':warning: `Please supply a valid amount of messages to purge`');
+            if (args[1] > 100) return message.channel.send(':warning: `Please supply a number less than 100`');
             message.channel.bulkDelete(args[1]);
             var cleanEmbed = new Discord.RichEmbed()            
             .setAuthor('Clean Embed')
@@ -207,7 +248,7 @@ break;
   weather.find({search: args.join(" "), degreeType: 'C'}, function(err, result) {
       if (err) message.channel.send(err);
       if (result === undefined || result.length === 0) {
-          message.channel.send('**Please enter a right location!**')
+          message.channel.send(':no_entry: `Please enter a right location!`')
           return;
       }
       var current = result[0].current;
@@ -227,7 +268,7 @@ break;
   })
         break;
                 case "invite":
-          if (!message.guild.member(bot.user).hasPermission('MANAGE_ROLES')) return message.channel.send('**I do not have the correct permissions.**').catch(console.error);
+          if (!message.guild.member(client.user).hasPermission('MANAGE_ROLES')) return message.channel.send(':no_entry: `I do not have the correct permissions.`').catch(console.error);
             message.channel.createInvite({ maxAge: 0 }).then(invite => {
                 var embed = new Discord.RichEmbed()
                     .setColor('#42c5f4')
@@ -240,12 +281,12 @@ var today = new Date()
 let Day = today.toString().split(" ")[0].concat("day");
 let Month = today.toString().split(" ")[1]
 let Year = today.toString().split(" ")[3]
-var date = new Discord.RichEmbed()
-.setTitle('Today\'s Date')
-.setDescription(`\`${Day}\` \`${Month}\` \`${Year}\`\n\`Time of day:\` \`${today.toString().split(" ")[4]}\``)
-.setFooter("Requested By " + message.author.tag, message.author.avatarURL)
+var embed = new Discord.RichEmbed()
 .setColor('#42c5f4')
-message.channel.send(date)
+.addField("Today is", `\`${Day}\` ,\`${Month}\` ,\`${Year}\`\n\`Time of day:\` \`${today.toString().split(" ")[4]}\``)
+.setFooter("Requested By " + message.author.tag, message.author.avatarURL)
+message.channel.send({ embed })
+    message.react("🕰")   
         break;
       case "stats":
   let cpuLol;
@@ -256,21 +297,24 @@ message.channel.send(date)
 
 
 
-  var duration = moment.duration(bot.uptime).format(" D [days], H [hrs], m [mins], s [secs]");
+  var duration = moment.duration(client.uptime).format(" D [days], H [hrs], m [mins], s [secs]");
   var embedStats = new Discord.RichEmbed()
     .setTitle("*** Statistics Of Nissan ***")
     .setColor('#42c5f4')
     .addField(":cd: Mem Usage", `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} / ${(os.totalmem() / 1024 / 1024).toFixed(2)} MB`, true)
     .addField(":watch: Uptime ", `${duration}`, true)
-    .addField(":telescope: Users", `${bot.users.size.toLocaleString()}`, true)
-    .addField(":pager: Servers", `${bot.guilds.size.toLocaleString()}`, true)
-    .addField(":anger: Channels ", `${bot.channels.size.toLocaleString()}`, true)
-    .addField(":beginner: Discord.js", `v${version}`, true)
-    .addField(":shield: Bot Version", `2.0.1+ (Final Version)`, true)
+    .addField(":telescope: Users", `${client.users.size.toLocaleString()}`, true)
+    .addField(":pager: Servers", `${client.guilds.size.toLocaleString()}`, true)
+    .addField(":anger: Guilds ", `${client.channels.size.toLocaleString()}`, true)
+    .addField(":flag_ua: Country", `Ukraine`, true)
+    .addField(":beginner: Library", `Discord.js`, true)
+    .addField(":beginner: Version Of Discord.js", `v${version}`, true)
+    .addField(":shield: Version Of Bot", `2.0.1+ (Final Version)`, true)
+    .addField(":octagonal_sign: Commands Count", `73 commands`, true)
     .addField(":rocket: Node", `${process.version}`, true)
     .addField(":floppy_disk: CPU", `\`\`\`md\n${os.cpus().map(i => `${i.model}`)[0]}\`\`\``)
     .addField(":minidisc: CPU usage", `\`${percent.toFixed(2)}%\``,true)
-    .addField(":desktop: Arch", `\`${os.arch()}\``,true)
+    .addField(":desktop: Kind Of System", `\`${os.arch()}\``,true)
     .addField(":mouse_three_button: Platform", `\`\`${os.platform()}\`\``,true)
     message.channel.send(embedStats)
   });
@@ -300,18 +344,18 @@ break;
       case "emoji":
        var List = message.guild.emojis.map(e => e.toString()).join(" ");
 
-        var EmojiList = new Discord.RichEmbed() //Embed Constructor || If lower than v12.0.0 | Use RichEmbed
-            .setAuthor('Emojis on this server') //<Guild> Name, Icon URL || If <Guild> Icon => Null Sends Custom Image URL 
-            .setColor('42c5f4') //Random colour || Any HexCode Can be used Instead
-            .setDescription(List) //Here will List of Emoji's
-            .setTimestamp() //The timestamp of this embed
-            .setFooter(message.guild.name) //Change To Anything As You Wish
-        message.channel.send(EmojiList) //Sends to Channe
+        var EmojiList = new Discord.RichEmbed() 
+            .setAuthor('Emojis on this server') 
+            .setColor('42c5f4')
+            .setDescription(List)
+            .setTimestamp() 
+            .setFooter(message.guild.name) 
+        message.channel.send(EmojiList) 
         break;
               case "membercount":
   var sicon = message.guild.iconURL;
 	var embed = new Discord.RichEmbed()
-    .setAuthor('Nissan', bot.user.avatarURL)
+    .setAuthor('Nissan', client.user.avatarURL)
 		.setColor('#42c5f4')
 		.setThumbnail(sicon)
 		.addField('Members', `**${message.guild.memberCount}**`, true)
@@ -322,6 +366,36 @@ break;
 		.setFooter(`Owner: ${message.guild.owner.user.tag}`)
 	message.channel.send(embed);
 break;
+      case "math":
+        var embed = new Discord.RichEmbed()
+        .setColor("#42c5f4");
+    
+    if (!args[1]) {
+        
+        embed.setFooter(':warning: `Please input an expression.`');
+        
+        return message.channel.send(embed);
+        
+    }
+    
+    var result;
+    try {
+        
+        result = math.eval(args.join(' '));
+        
+    } catch (e) {
+        
+        result = 'Error: "Invalid Input"';
+        
+    }
+        
+    
+    embed.addField('Input', `\`\`\`js\n${args.join(' ').slice(4)}\`\`\``)
+         .addField('Output', `\`\`\`js\n${result}\`\`\``)
+         .setFooter("Requested By " + message.author.tag, message.author.avatarURL)
+         
+    message.channel.send(embed);
+        break;
       case "help":
   switch (args[1]) {
         case "owners":
@@ -346,7 +420,7 @@ break;
     var embed = new Discord.RichEmbed()
     .setTitle(':warning: Help Commands')
     .setDescription('Here we have ``commands for help.``')
-    .addField('Commands it this group:', `;emoji - **Sending in chat all emojis on this guild**\n;date - **Shows todays date**\n;invite - **Creating invite to this server**\n;weather - **Shows weather in once of your location**\n;hastebin - **Trasnfers JS code or text to Hastebin**`)
+    .addField('Commands it this group:', `;nickname - Changing Nissans Nickname\n;emoji - **Sending in chat all emojis on this guild**\n;date - **Shows todays date**\n;invite - **Creating invite to this server**\n;weather - **Shows weather in once of your location**\n;hastebin - **Trasnfers JS code or text to Hastebin**\n;invitelist - **Sending in chat an embed of invites**`)
     .setFooter("Requested By " + message.author.tag, message.author.avatarURL)
     .setColor('#42c5f4')
     message.channel.send(embed)
@@ -406,7 +480,7 @@ break;
     message.channel.send(embed)
     break;
       default:
-help(bot, message, args)
+help(client, message, args)
     message.react("✅")
       break;
     }
@@ -446,11 +520,11 @@ var embed = new Discord.RichEmbed()
 message.channel.send(embed)
         break;
       case "balance":
-       var user = message.mentions.users.first() || message.author;
+       var user = message.mentions.users.first() || matches.first() || message.author;
         
         var balance = await db.fetch(`userBalance_${user.id}`)
         
-        if (balance === null) balance = 0;
+        if (balance === null) balance = 50;
         
         var embed = new Discord.RichEmbed()
         .setTitle('Coin Balance')
@@ -492,29 +566,27 @@ message.channel.send(embed)
     })} catch(err) {console.log(err)}
         break;
       case "pay":
-        if (!message.mentions.member.first()) return message.channel.send(':warning: `Please, mention someone first!`');
-        
-        let targetMember = message.mentions.member.first()
-            amount = parseInt(args.join(' ').replace(targetMember, ''));
-        
-        if (isNaN(amount)) return message.channel.send(':warning: `Please type an amount!`');
-        
-        let targetBalance = await db.fetch(`userBalance_${targetMember.id}`),
-            selfBalance = await db.fetch(`userBalance_${message.author.id}`)
-        
-        if (targetBalance = null) targetBalance = 0;
-        if (selfBalance = null) selfBalance = 0;
-        
-        if (amount > selfBalance) return message.channel.send(':no_entry `Sorry, but you havent got enough money!`');
-        
-        db.add(`userBalance_${targetMember.id}`, amount)
-        db.subtract(`userBalance_${message.author.id}`)
-        var embed = new Discord.RichEmbed()
-        .setTitle('Friendly Givment')
-        .setColor('#42c5f4')
-        .addField(`Sucessfully sent **$${amount}** to **${targetMember.user.tag}**!`)
+        pay(client, message, args)
+        break;
+      case "invitelist":
+    let invites = await message.guild.fetchInvites().catch(error => {
+        return message.channel.send(':no_entry: `Sorry, I don\'t have the proper permissions to view invites!`');
+    });
+
+    invites = invites.array();
+
+    let possibleinvites = [];
+    invites.forEach(function(invites) {
+        possibleinvites.push(`${invites.inviter.username} ||  ${invites.uses}`)
+    })
+
+    var embed = new Discord.RichEmbed()
+        .setTitle(`**INVITELEADERBOARD**`)
+        .setColor("#42c5f4")
+        .addField('Invites', `\`\`\`${possibleinvites.join('\n')}\`\`\``)
+        .setTimestamp()
         .setFooter('Requested By ' + message.author.tag, message.author.avatarURL)
-        message.channel.send(embed);
+    message.channel.send(embed);
         break;
       case "reverse":
   if(!args[1]) return message.channel.send(':warning: `Correct usage:` **;reverse (text to reverse)**');
@@ -701,36 +773,35 @@ break;
     })
 break;
                 case "say":
+            message.bulkDelete();
             if (message.author.bot) return;
 
             var msg = message.content.toUpperCase();
             var args = msg.split(" ")
-            if (!args[1]) return message.channel.send(":warning: `You have to provide a message for me to say!`");
+            if (!args[1]) return message.channel.send(":warning: `You have to provide a message to say!`");
             var arg = message.content.split(" ").slice(1);
             message.channel.send(arg.join(" "));
             break;
                 case "pat":
-            if (message.mentions.users.size < 1) return message.channel.send(':warning: `You must mention someone to send pat gif them.`').catch(console.error);
-            var images = ["https://cdn.discordapp.com/attachments/424667806320033814/437807617965031424/unnamed_1.gif", "https://cdn.glitch.com/5df641e3-8d98-4abb-9045-d5482434003a%2FJake_pat.gif?1524497996034", "https://media.tenor.com/images/cdc004bbbaba6f60d8e62a1f127516e0/tenor.gif"];
-            var rand = Math.floor(Math.random() * images.length);
-            var randomImage = images[rand];
+if (!args[1]) return message.channel.send(':warning: `Please mention someone!`')
 
-            var patEmb = new Discord.RichEmbed()
-                .setColor('#42c5f4')
-                .setImage(randomImage);
-            var sadEmb = new Discord.RichEmbed()
-                .setColor('#42c5f4')
-                .setImage('https://media.giphy.com/media/Y4z9olnoVl5QI/giphy.gif');
-            if (!args[1]) {
-                message.channel.send(`<@${message.author.id}> pat <@${message.author.id}>.. Oh wait! You can't pat yourself!`, { embed: sadEmb });
-                return;
-            }
+var images = ["https://cdn.discordapp.com/attachments/424667806320033814/437807617965031424/unnamed_1.gif", "https://cdn.glitch.com/5df641e3-8d98-4abb-9045-d5482434003a%2FJake_pat.gif?1524497996034", "https://media.tenor.com/images/cdc004bbbaba6f60d8e62a1f127516e0/tenor.gif", "https://cdn.discordapp.com/attachments/456378931256360964/458970321450434591/8b426c9bedc37054cd7e73925fa10da5.gif", "https://cdn.discordapp.com/attachments/456378931256360964/458970517437808641/tenor.gif", "https://cdn.discordapp.com/attachments/456378931256360964/458970517169504277/85777dd28aa87072ee5a9ed759ab0170b3c60992_hq.gif"];
+var rand = Math.floor(Math.random() * images.length);
+var randomImage = images[rand];
 
-            if (!message.mentions.users.first()) return message.channel.send(`Please mention someone!`).then(message => {
-                message.delete(3000)
-            });
-            message.channel.send(`<@${message.author.id}> pat ${args[0]}`, { embed: patEmb });
-            break;
+var patEmb = new Discord.RichEmbed()
+.setColor('#42c5f4')
+.setImage(randomImage);
+var sadEmb = new Discord.RichEmbed()
+.setColor('#42c5f4')
+.setImage('https://media.giphy.com/media/Y4z9olnoVl5QI/giphy.gif');
+if(!!message.mentions.users.first() > 1) {
+  message.channel.send(`<@${message.author.id}> pated... Oh wait! You can't pat yourself!`, {embed: sadEmb});
+  return;
+}
+        
+message.channel.send(`<@${message.author.id}> pated ${args[1]}`, {embed: patEmb})
+  break;
                 case "report":
             if (!message.member.hasPermission("MANAGE_MESSAGES")) return message.channel.send(":no_entry: `Sorry, but you do not have valid permissions! If you beleive this is a error, contact an owner.`");
             var rUser = message.guild.member(message.mentions.users.first() || message.guild.members.get(args[0]));
@@ -762,7 +833,7 @@ break;
             var kReason = args.join(" ").slice(22);
             if (!message.member.hasPermission("KICK_MEMBERS")) return message.channel.send(":warning: `No can do pal!`");
             if (kUser.hasPermission("KICK_MEMBERS")) return message.channel.send(":warning: `That person can't be kicked!`");
-            if (!message.guild.member(bot.user).hasPermission('MANAGE_ROLES_OR_PERMISSIONS')) return message.channel.send(':no_entry: `I do not have the correct permissions!`').catch(console.error);
+            if (!message.guild.member(client.user).hasPermission('MANAGE_ROLES_OR_PERMISSIONS')) return message.channel.send(':no_entry: `I do not have the correct permissions!`').catch(console.error);
 
             var kickEmbed = new Discord.RichEmbed()
                 .setDescription("~Kick~")
@@ -788,7 +859,7 @@ break;
             var bReason = args.join(" ").slice(22);
             if (!message.member.hasPermission("BAN_MEMBERS")) return message.channel.send(":warning: `No can do pal!`");
             if (bUser.hasPermission("ADMINISTRATOR")) return message.channel.send(":warning: `That person can't be banned!`");
-            if (!message.guild.member(bot.user).hasPermission('BAN_MEMBERS')) return message.channel.send(':no_entry: `I do not have the correct permissions!`').catch(console.error);
+            if (!message.guild.member(client.user).hasPermission('BAN_MEMBERS')) return message.channel.send(':no_entry: `I do not have the correct permissions!`').catch(console.error);
 
             var banEmbed = new Discord.RichEmbed()
                 .setDescription("~Ban~")
@@ -808,12 +879,12 @@ break;
             incidentchannel.send(banEmbed)
             break;
         case "unban":
-  if (!message.guild.member(bot.user).hasPermission('MANAGE_ROLES')) return message.channel.send(':no_entry: `I do not have the correct permissions!`').catch(console.error);
+  if (!message.guild.member(client.user).hasPermission('MANAGE_ROLES')) return message.channel.send(':no_entry: `I do not have the correct permissions!`').catch(console.error);
   var reason = args.slice(1).join(' ');
-  bot.unbanReason = reason;
-  bot.unbanAuth = message.author;
+  client.unbanReason = reason;
+  client.unbanAuth = message.author;
   var user = args[0];
-  var modlog = bot.channels.find('name', 'mod-log');
+  var modlog = client.channels.find('name', 'mod-log');
   if (!modlog) return message.reply(":no_entry: `Can't find mod-log channel.`");
   if (reason.length < 1) return message.reply(':warning: `You must supply a reason for the unban.`');
   if (!user) return message.reply(':warning: `You must supply a User Resolvable, such as a user id.`').catch(console.error);
@@ -890,7 +961,7 @@ break;
         .then(url => {
             const embed = new Discord.RichEmbed()
                 .setColor('#42c5f4')
-                .setAuthor("N.S.F.W", bot.user.avatarURL)
+                .setAuthor("N.S.F.W", client.user.avatarURL)
                 .setFooter("Requested By " + message.author.tag, message.author.avatarURL)
                 .setImage(url);
             message.channel.send({
@@ -941,6 +1012,10 @@ break;
 		if (!permissions.has('SPEAK')) {
 			return message.channel.send(':no_entry: `I cannot speak in this voice channel, make sure I have the proper permissions!`');
 		}
+    if (!args[1]) {
+      message.channel.send(':warning: `Please, type name of your song!`')
+        return;
+    }
       if (url.match(/^https?:\/\/(www.youtube.com|youtube.com)\/playlist(.*)$/)) {
 			var playlist = await youtube.getPlaylist(url);
 			var videos = await playlist.getVideos();
@@ -957,9 +1032,9 @@ break;
 					var videos = await youtube.searchVideos(searchString, 10);
 					var index = 0;
 					message.channel.send(`
-__**Song selection:**__
+:mag_right: __**Song selection:**__
 ${videos.map(video2 => `**${++index} -** ${video2.title}`).join('\n')}
-Please provide a value to select one of the search results ranging from 1-10.
+:inbox_tray: Please provide a value to select one of the search results ranging from 1-10.
 					`);
 					// eslint-disable-next-line max-depth
 					try {
@@ -986,6 +1061,7 @@ Please provide a value to select one of the search results ranging from 1-10.
 		if (!message.member.voiceChannel) return message.channel.send(':warning: `You are not in a voice channel!`');
 		if (!serverQueue) return message.channel.send(':no_entry: `There is nothing playing that I could skip for you.`');
 		serverQueue.connection.dispatcher.end('`Skip command has been used!');
+    message.channel.send(':fast_forward: `Skip command has been used!`')
 		return undefined;
         break;
       case "mstop":
@@ -998,10 +1074,11 @@ break;
       case "mvolume":
 		if (!message.member.voiceChannel) return message.channel.send(':warning: `You are not in a voice channel!`');
 		if (!serverQueue) return message.channel.send(':no_entry: `There is nothing playing that I could change volume for you.`');
-		if (!args[1]) return message.channel.send(`The current volume is: **${serverQueue.volume}**`);
+    if (args[1] > 100) return message.channel.send(':warning: `Please supply a number less than 100`');
+		if (!args[1]) return message.channel.send(`:sound: The current volume is: **${serverQueue.volume}**`);
 		serverQueue.volume = args[1];
 		serverQueue.connection.dispatcher.setVolumeLogarithmic(args[1] / 5);
-		return message.channel.send(`I set the volume to: **${args[1]}**`);
+		return message.channel.send(`:sound: I set the volume to: **${args[1]}**`);
 break;
       case "mnp":
 		if (!serverQueue) return message.channel.send(':no_entry: `There is nothing playing that I could show which song is now playing for you.`');
@@ -1019,7 +1096,7 @@ break;
 		if (serverQueue && serverQueue.playing) {
 			serverQueue.playing = false;
 			serverQueue.connection.dispatcher.pause();
-			return message.channel.send('⏸ Paused the music for you!');
+			return message.channel.send('⏸ `Paused the music for you!`');
 		}
 		return message.channel.send(':no_entry: `There is nothing playing that I could pause for you.`');
 break;
@@ -1027,7 +1104,7 @@ break;
 		if (serverQueue && !serverQueue.playing) {
 			serverQueue.playing = true;
 			serverQueue.connection.dispatcher.resume();
-			return message.channel.send('▶ Resumed the music for you!');
+			return message.channel.send('▶ `Resumed the music for you!`');
 		}
 		return message.channel.send(':no_entry: `There is nothing playing that I could resume for you.`');
 	
@@ -1063,7 +1140,7 @@ async function handleVideo(video, message, voiceChannel, playlist = false) {
 		} catch (error) {
 			console.error(`I could not join the voice channel: ${error}`);
 			queue.delete(message.guild.id);
-			return message.channel.send(`I could not join the voice channel: ${error}`);
+			return message.channel.send(`:no_entry: **I could not join the voice channel:** ${error}`);
 		}
 	} else {
 		serverQueue.songs.push(song);
@@ -1079,6 +1156,7 @@ async function handleVideo(video, message, voiceChannel, playlist = false) {
 	if (!song) {
 		serverQueue.voiceChannel.leave();
 		queue.delete(guild.id);
+    message.channel.send(':o: `The queue of songs has been removed! If you want to listen the music again, type` **;mplay <name of music>** `to play it!`')
 		return;
 	}
 	console.log(serverQueue.songs);
@@ -1110,5 +1188,5 @@ function getResponse(msg, input) {
     return handler.toString()
   }
 });
-bot.login(process.env.TOKEN)
+client.login(process.env.TOKEN)
         
